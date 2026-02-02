@@ -17,6 +17,11 @@ exports.getUser = async (id) => {
   return user;
 };
 
+exports.getUserByName = async (username) => {
+  const user = await prisma.user.findUnique({ where: { username: username } });
+  return user;
+};
+
 // Returns true if user is created, false if username is already in use
 exports.createUser = async (name, username, password, type = "standard") => {
   const user = await prisma.user.findUnique({ where: { username: username } });
