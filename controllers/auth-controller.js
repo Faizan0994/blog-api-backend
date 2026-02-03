@@ -32,6 +32,17 @@ const validator = [
     ), // Prevent user from messing with the page in dev tools
 ];
 
+const loginValidator = [
+  body("username")
+    .trim()
+    .isLength({ max: 25 })
+    .withMessage("username must be less than 25 characters long"),
+  body("password")
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage("Password must not be more than 50 characters long"),
+];
+
 exports.signupPost = [
   validator,
   async (req, res) => {
@@ -50,5 +61,23 @@ exports.signupPost = [
       return res.status(409).json({ errors: ["Username already Taken"] });
     const user = await queries.getUserByName(username);
     return res.status(201).json(user);
+  },
+];
+
+exports.loginPost = [
+  loginValidator,
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+    const { username, password } = req.body;
+    const user = await queries.getUserByName(username);
+    let isPasswordCorrect = false;
+    if (user) isPasswordCorrect = await bcrypt.compare(password, user.password);
+    if (!(user && isPasswordCorrect)) {
+      return res.status(401).json({ errors: ["invalid username or password"] });
+    }
+    return res.status(200).json(user);
   },
 ];
