@@ -60,7 +60,8 @@ exports.signupPost = [
     if (!userCreated)
       return res.status(409).json({ errors: ["Username already Taken"] });
     const user = await queries.getUserByName(username);
-    return res.status(201).json(user);
+    const { password: pass, ...safeUser } = user; // Remove password from user object before sending
+    return res.status(201).json(safeUser);
   },
 ];
 
@@ -78,6 +79,7 @@ exports.loginPost = [
     if (!(user && isPasswordCorrect)) {
       return res.status(401).json({ errors: ["invalid username or password"] });
     }
-    return res.status(200).json(user);
+    const { password: pass, ...safeUser } = user; // Remove password from user object before sending
+    return res.status(200).json(safeUser);
   },
 ];
