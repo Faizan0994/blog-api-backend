@@ -1,6 +1,7 @@
 const { validationResult, body } = require("express-validator");
 const bcrypt = require("bcryptjs");
 const queries = require("../db/queries");
+const jwt = require("jsonwebtoken");
 
 const validator = [
   body("name")
@@ -43,6 +44,20 @@ const loginValidator = [
     .withMessage("Password must not be more than 50 characters long"),
 ];
 
+// Verify token
+function verifyToken(req, res, next) {
+  // Get auth header value
+  const bearerHeader = req.headers["authorization"];
+  if (typeof bearerHeader !== undefined) {
+    const token = bearerHeader.split(" ")[1];
+    // set token
+    req.token = token;
+    next();
+  } else {
+    res.sendStatus(403);
+  }
+}
+
 exports.signupPost = [
   validator,
   async (req, res) => {
@@ -80,6 +95,15 @@ exports.loginPost = [
       return res.status(401).json({ errors: ["invalid username or password"] });
     }
     const { password: pass, ...safeUser } = user; // Remove password from user object before sending
-    return res.status(200).json(safeUser);
+
+    // Sign auth token
+    jwt.sign(
+      { user: safeUser },
+      "secretkey",
+      { expiresIn: "2d" },
+      (err, token) => {
+        res.status(200).json({ token: token });
+      },
+    );
   },
 ];
