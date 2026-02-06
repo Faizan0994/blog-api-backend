@@ -1,0 +1,109 @@
+const { validationResult, body } = require("express-validator");
+const queries = require("../db/queries");
+const jwt = require("jsonwebtoken");
+
+const postValidator = [
+  body("title")
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage("Title must be less than 50 characters"),
+  body("text")
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage("Post cannot be longer than 500 characters"),
+];
+
+// Verify token
+function verifyToken(req, res, next) {
+  // Get auth header value
+  const bearerHeader = req.headers["authorization"];
+  if (bearerHeader) {
+    const token = bearerHeader.split(" ")[1];
+    // set token
+    jwt.verify(token, "secretkey", (err, authData) => {
+      if (err) return res.sendStatus(403);
+      else {
+        req.user = authData.user;
+      }
+    });
+    next();
+  } else {
+    res.sendStatus(403);
+  }
+}
+
+exports.createPost = [
+  verifyToken,
+  postValidator,
+  async (req, res) => {
+    const user = req.user;
+    if (!(user.type === "admin")) return res.sendStatus(403); // Only admin can create posts
+
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { title, text, published } = req.body;
+    let isPublished = false;
+    if (published === "true" || published === "on" || published === true) {
+      isPublished = true;
+    }
+
+    await queries.createPost(user.id, title, text, isPublished);
+    return res.sendStatus(201);
+  },
+];
+
+exports.getPosts = [
+  verifyToken,
+  async (req, res) => {
+    const status = req.query.status;
+    let published = true;
+    if (status === "all") published = false;
+    let posts = [];
+    if (published) posts = await queries.getAllPublishedPosts();
+    else posts = await queries.getAllPosts();
+    return res.status(200).json({ posts });
+  },
+];
+
+exports.getPostById = [
+  verifyToken,
+  async (req, res) => {
+    const id = +req.params.id;
+    const post = await queries.getPost(id);
+    if (post) return res.status(200).json(post);
+    else return res.sendStatus(404);
+  },
+];
+
+exports.deletePost = [
+  verifyToken,
+  async (req, res) => {
+    const id = +req.params.id;
+    if (!(req.user.type === "admin")) return res.sendStatus(403); // Only admin can delete posts
+    try {
+      await queries.deletePost(id);
+      return res.sendStatus(204);
+    } catch (error) {
+      return res.sendStatus(404);
+    }
+  },
+];
+
+exports.updatePost = [
+  verifyToken,
+  async (req, res) => {
+    const id = +req.params.id;
+    const { post } = req.body;
+    if (!(req.user.type === "admin")) return res.sendStatus(403); // Only admin can edit posts
+    try {
+      await queries.updatePost(id, post);
+      return res.sendStatus(200);
+    } catch (error) {
+      console.log(error);
+      res.sendStatus(404);
+    }
+  },
+];
