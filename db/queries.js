@@ -108,6 +108,19 @@ exports.createPost = async (userId, title, text, published) => {
   });
 };
 
+exports.updatePost = async (id, data) => {
+  await prisma.post.update({
+    where: {
+      id: id,
+    },
+    data: {
+      text: data.text,
+      title: data.title,
+      published: data.published,
+    },
+  });
+};
+
 exports.deletePost = async (id) => {
   await prisma.post.delete({ where: { id: id } });
 };
