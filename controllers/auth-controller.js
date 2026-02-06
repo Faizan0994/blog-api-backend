@@ -44,20 +44,6 @@ const loginValidator = [
     .withMessage("Password must not be more than 50 characters long"),
 ];
 
-// Verify token
-function verifyToken(req, res, next) {
-  // Get auth header value
-  const bearerHeader = req.headers["authorization"];
-  if (typeof bearerHeader !== undefined) {
-    const token = bearerHeader.split(" ")[1];
-    // set token
-    req.token = token;
-    next();
-  } else {
-    res.sendStatus(403);
-  }
-}
-
 exports.signupPost = [
   validator,
   async (req, res) => {
