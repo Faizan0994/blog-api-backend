@@ -152,6 +152,17 @@ exports.deleteComment = async (id) => {
   await prisma.comment.delete({ where: { id: id } });
 };
 
+exports.updateComment = async (id, text) => {
+  await prisma.comment.update({
+    where: {
+      id: id,
+    },
+    data: {
+      text: text,
+    },
+  });
+};
+
 /*------------------------------------
   Token Queries
 --------------------------------------*/

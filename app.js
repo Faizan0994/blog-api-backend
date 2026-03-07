@@ -3,6 +3,7 @@ const path = require("path");
 const jwt = require("jsonwebtoken");
 const authRouter = require("./routes/auth");
 const postsRouter = require("./routes/posts");
+const commentsRouter = require("./routes/comments");
 const cookieParser = require("cookie-parser");
 require("dotenv").config();
 
@@ -14,6 +15,7 @@ app.use(cookieParser());
 
 app.use("/api/auth", authRouter);
 app.use("/api/posts", postsRouter);
+app.use("/api/comments", commentsRouter);
 
 app.listen(process.env.PORT || 3000, (error) => {
   console.log("server listening...");
