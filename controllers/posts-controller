@@ -41,10 +41,12 @@ exports.getPosts = [
   verifyToken,
   async (req, res) => {
     const status = req.query.status;
+    const id = +req.query.authorId;
     let published = true;
     if (status === "all") published = false;
     let posts = [];
-    if (published) posts = await queries.getAllPublishedPosts();
+    if (id) posts = await queries.getPostsOfAuthor(id);
+    else if (published) posts = await queries.getAllPublishedPosts();
     else posts = await queries.getAllPosts();
     return res.status(200).json({ posts });
   },
