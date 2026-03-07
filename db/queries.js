@@ -152,6 +152,43 @@ exports.deleteComment = async (id) => {
   await prisma.comment.delete({ where: { id: id } });
 };
 
+/*------------------------------------
+  Token Queries
+--------------------------------------*/
+
+exports.saveRefreshToken = async (token, userId, expiresAt) => {
+  await prisma.token.create({
+    data: {
+      token: token,
+      userId: userId,
+      expires_at: expiresAt,
+    },
+  });
+};
+
+exports.getToken = async (token) => {
+  const stored = await prisma.token.findUnique({
+    where: {
+      token: token,
+    },
+    include: {
+      user: true,
+    },
+  });
+  return stored;
+};
+
+exports.revokeToken = async (token) => {
+  await prisma.token.update({
+    where: {
+      token: token,
+    },
+    data: {
+      revoked: true,
+    },
+  });
+};
+
 // For testing queries
 async function test() {}
 

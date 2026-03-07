@@ -2,6 +2,7 @@ const { validationResult, body } = require("express-validator");
 const bcrypt = require("bcryptjs");
 const queries = require("../db/queries");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 
 const validator = [
   body("name")
@@ -44,6 +45,47 @@ const loginValidator = [
     .withMessage("Password must not be more than 50 characters long"),
 ];
 
+function createAccessToken(user) {
+  return jwt.sign({ user }, process.env.ACCESS_SECRET, {
+    expiresIn: "15m",
+  });
+}
+
+function createRefreshToken(user) {
+  return jwt.sign({ user }, process.env.REFRESH_SECRET, {
+    expiresIn: "7d",
+  });
+}
+
+// Verify token
+exports.verifyToken = (req, res, next) => {
+  // Get auth header value
+  const bearerHeader = req.headers["authorization"];
+  if (bearerHeader) {
+    const token = bearerHeader.split(" ")[1];
+    // set token
+    let isValid = false;
+    jwt.verify(token, process.env.ACCESS_SECRET, (err, authData) => {
+      if (err) return res.sendStatus(401);
+      else {
+        isValid = true;
+        req.user = authData.user;
+      }
+    });
+
+    if (isValid) next();
+  } else {
+    return res.sendStatus(401);
+  }
+};
+
+function hashToken(token) {
+  return crypto
+    .createHmac("sha256", process.env.REFRESH_HASH_SECRET)
+    .update(token)
+    .digest("hex");
+}
+
 exports.signupPost = [
   validator,
   async (req, res) => {
@@ -56,12 +98,11 @@ exports.signupPost = [
     const salt = await bcrypt.genSalt();
     const hashed = await bcrypt.hash(password, salt);
     const type = isAdmin ? "admin" : "standard";
-    console.log(type);
     const userCreated = await queries.createUser(name, username, hashed, type);
     if (!userCreated)
       return res.status(409).json({ errors: ["Username already Taken"] });
     const user = await queries.getUserByName(username);
-    const { password: pass, ...safeUser } = user; // Remove password from user object before sending
+    const { password: pass, tokens, ...safeUser } = user; // Remove password from user object before sending
     return res.status(201).json(safeUser);
   },
 ];
@@ -80,16 +121,50 @@ exports.loginPost = [
     if (!(user && isPasswordCorrect)) {
       return res.status(401).json({ errors: ["invalid username or password"] });
     }
-    const { password: pass, ...safeUser } = user; // Remove password from user object before sending
+    const { password: pass, tokens, ...safeUser } = user; // Remove password from user object before sending
 
-    // Sign auth token
-    jwt.sign(
-      { user: safeUser },
-      "secretkey",
-      { expiresIn: "2d" },
-      (err, token) => {
-        res.status(200).json({ token: token });
-      },
-    );
+    const token = createAccessToken(safeUser);
+    const refresh = createRefreshToken(safeUser);
+    const refreshHash = hashToken(refresh);
+    await queries.saveRefreshToken(
+      refreshHash,
+      safeUser.id,
+      new Date(Date.now() + 7 * 24 * 3600 * 1000),
+    ); // 7d
+    res.cookie("refreshToken", refresh, {
+      httpOnly: true,
+      sameSite: true,
+      secure: true,
+    });
+    res.status(200).json({ token });
+  },
+];
+
+exports.refresh = async (req, res) => {
+  const token = req.cookies.refreshToken;
+  if (!token) return res.sendStatus(401);
+  const hashed = hashToken(token);
+  const stored = await queries.getToken(hashed);
+  if (!stored || stored.revoked) return res.sendStatus(401);
+  const { user } = stored;
+  const { password: pass, tokens, ...safeUser } = user;
+  jwt.verify(token, process.env.REFRESH_SECRET, async (err, payload) => {
+    if (err) return res.sendStatus(401);
+
+    const newAccessToken = createAccessToken(safeUser);
+    res.json({ token: newAccessToken });
+  });
+};
+
+exports.logout = [
+  this.verifyToken,
+  async (req, res) => {
+    if (!req.user) return res.sendStatus(401);
+    const token = req.cookies.refreshToken;
+    const hashed = hashToken(token);
+
+    await queries.revokeToken(hashed);
+    res.clearCookie("refreshToken");
+    res.sendStatus(204);
   },
 ];

@@ -24,6 +24,7 @@ model User {
   name        String
   username    String      @unique
   password    String
+  tokens      Token[]
   posts       Post[]
   comments    Comment[]
 }
@@ -46,4 +47,14 @@ model Comment {
   postId        Int
   post          Post       @relation(fields: [postId], references: [id], onDelete: Cascade)
   author        User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+}
+
+model Token {
+  id          Int          @id @default(autoincrement())
+  userId      Int          
+  token       String       @unique
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expires_at  DateTime     
+  created_at  DateTime     @default(now())
+  revoked     Boolean      @default(false)
 }

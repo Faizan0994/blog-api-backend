@@ -1,6 +1,7 @@
 const { validationResult, body } = require("express-validator");
 const queries = require("../db/queries");
 const jwt = require("jsonwebtoken");
+const { verifyToken } = require("./auth-controller");
 
 const postValidator = [
   body("title")
@@ -12,25 +13,6 @@ const postValidator = [
     .isLength({ max: 500 })
     .withMessage("Post cannot be longer than 500 characters"),
 ];
-
-// Verify token
-function verifyToken(req, res, next) {
-  // Get auth header value
-  const bearerHeader = req.headers["authorization"];
-  if (bearerHeader) {
-    const token = bearerHeader.split(" ")[1];
-    // set token
-    jwt.verify(token, "secretkey", (err, authData) => {
-      if (err) return res.sendStatus(403);
-      else {
-        req.user = authData.user;
-      }
-    });
-    next();
-  } else {
-    res.sendStatus(403);
-  }
-}
 
 exports.createPost = [
   verifyToken,
