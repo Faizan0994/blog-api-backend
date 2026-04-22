@@ -15,8 +15,10 @@ This project is a high-performance backend solution for managing a blog's core d
 **Backend:**
 - Node.js
 - Express
+
 **Database:**
 - PostgreSQL (using Prisma ORM)
+
 **Other Tools:**
 - Prisma (ORM)
 - ESLint & Prettier
